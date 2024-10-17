@@ -1,0 +1,20 @@
+{
+  "name": "terrasagrada-utility-bot",
+  "version": "1.1.0",
+  "description": "Um bot simples para automatizar algumas tarefas do servidor de rpg Terra Sagrada",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "firebase": "^10.12.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.7.0",
+    "eslint": "^9.7.0",
+    "globals": "^15.8.0"
+  }
+}

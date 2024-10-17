@@ -1,0 +1,29 @@
+{
+    "token": "",
+    "clientId": "",
+	"guildId": "",
+
+    "firebaseConfig": {
+			"apiKey": "",
+			"authDomain": "",
+			"projectId": "",
+			"storageBucket": "",
+			"messagingSenderId": "",
+			"appId": ""
+    },
+
+		"userCollection": "",
+
+		"channels": {
+			"banco": "",
+			"fonteXp": "",
+			"gemas": "",
+			"transferencias": "",
+			"geral": "",
+			"compras": "",
+			"forja": "",
+			"oficios": "",
+			"fichas": "",
+			"aventuras": ""
+		}
+}

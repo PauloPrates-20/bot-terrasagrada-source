@@ -1,0 +1,207 @@
+I'm developing a discord bot which will have quite a complex structure, so i'll start to list the requirements.
+
+Description:
+
+The bot will be used in a tabletop rpg discord server to control user currency, but also, register player characters, character experience and player treasures. And also generate, store, and publish logs of transactions done by the players for the admins of the server.
+
+Libs and APIs:
+
+the project will use discord.js and firestore to create the bot and store data respectively.
+
+Structure:
+
+the project folder structure will be the following:
+
+root/
+├── lib/
+│   ├── firebase/
+│   │   └── firestoreQuerys.js
+│   └── utility/
+│       └── ...helperFunctions.js
+├── commands/
+│   ├── admin/
+│   │   └── ...commands.js
+│   └── user/
+│       └── ...commands.js
+├── config.json
+├── events/
+│   └── ...events.js
+├── node_modules
+├── eslint.config.mjs
+├── main.js
+├── packgage-lock.json
+└── package.json
+
+ -Commands folder:
+
+The commands folder will store the application (/) commands, wich will be separated in two main categories as for now:
+
+admin: commands that only administrators of the server will be able to use, which will include functions to delete players / characters from the database as well as altering players' currency and other properties
+
+user: the basic commands for players to register their character, deposit / withdrawl their gold, make transferences for other players and add experience to their characters. They must also be able to delete their characters as they see fit (but never other players' characters or data)
+
+ -Events folder:
+
+The events folder will store the events that will be them read by the event handler
+
+The main events that will be handled will be ready.js which will log to the console when the client is ready and interactionCreate, which will check to see if a command was invoked, run the invoked command and pass the required args.
+
+Player class:
+
+The player will be an instance of the Player class, which in turn will contain the following:
+
+id: <@userId>
+characters: []<Character>
+gold: int
+gems: []<Gem>
+
+the player instance is what will be stored in the firestore database in a 'users' collection. Each player will be a document inside that collection whose doc.id will be the player.id value.
+
+when first registering a player must be constructed with an empty characters array, 0 gold, empty gems array and empty logs array. After first registering a player cannot register again or delete himself from the database.
+
+Character class:
+
+The characters of a player will also be instances of a class, containing:
+
+name: string
+xp: int
+tier: string
+
+The player will register characters to himself passing a name as the only argument for the command. After that the character is constructed with 0 xp and 'iniciante' as his tier.
+
+Gems class:
+
+Gem are another object a player will be able to register / modify for himself. It's properties will be:
+
+type: 'comum'| 'transmutação' | 'ressureição'
+quantity: int
+
+players will only be able to add / subtract gems to themselves, passing both type and quantity as args for the slash command.
+
+Log class:
+
+The logs are a special kind of object that will be only created and registered by the bot to keep track whenever a player add / remove gems, gold or xp from their instance or their characters' instances. The log will be comprised of:
+
+type: ['ouro', 'gema', 'xp']
+targets: []<userId> (1..*)
+channels: []<channelId> (1..*)
+content: string
+
+the type attribute will be determined by the slash command called, which will have it's own type depending on the player property it's modifying. The targets will alway be the user who ran the command and, when it applies a target user who will be passed to the command as an argument and them passed to the Log constructor. The channel will be chosen from a list of channels stored in the config.json file based on the type of the transaction and amount of targets.
+
+The content will be a string builded with an auxiliary function that will take type, targets and channel as arguments to define the text among a few pre-determined patterns.
+
+The logs will be stored inside a Logs subcollection of the player and it's content published in the appropriate channels.
+
+Database data structure:
+
+root/
+└── users/
+    ├── user:
+    ├── id - <userId>
+    ├── gold - int
+    ├── gems - array
+    ├── characters - array(0..*)
+    └── logs/
+        ├── log:
+        ├── type - string
+        ├── channels - array(1..*)
+        ├── targets - array(1..*)
+        └── content - string
+
+users/ is a collection of users while user: is an user document
+logs/ is a subcollection inside a user: document and log: is a log document
+
+User commands:
+
+ -utility:
+
+/registrar
+Will search the 'users' collection in the firestore database for a document whose doc.id value equals to the user.id value of the user who ran the command. If a doc is found the bot will reply with 'Jogador já registrado', else, the bot will initialize the player passing the user.id parameter to the constructor and save it as new doc and then reply with 'Jogador registrado com sucesso!'.
+
+/listar
+Will reply with 'Jogador não encontrado' if the player isn't registered yet, else it will list the player's gold, gems, characters and character experience in a reply to the interaction.
+
+/addPersonagem <nome>
+Will create an instance of the Character class with the provided name and add it to the player object.
+
+/rmvPersonagem <nome>
+Will delete a registered character from the player object. Will reply with 'Personagem não encontrado' if the character name don't match any charcter registered to the user who ran the command
+
+ -currency:
+
+Every command under the -currency: tab will be used to mutate the player currency, therefore some set of rules are common to all of them:
+
+When executed the command must retrieve the player from the database;
+The command must them mutate the player currency by the amount passed to the command;
+After the mutation the command must generate a log, there will be four types of log messages:
+
+Gold: (Deposita or Retira will be chosen based on the action of a command)
+
+Jogador: <@userId>
+Deposita|Retira: <amount> PO
+Total: <gold +/- amount> PO
+Origem: <origin>
+
+Gem:
+
+Jogador: <@userId>
+Deposita|Retira: <amount> gema(s) <type>
+Total: <gems +/- amount>
+Origem: <origin>
+
+Xp:
+
+Jogador: <@userId>
+Personagem: <character>
+Ganho de Experiência: <amount> XP
+Experiência Acumulada: <character.xp + amount> XP
+Nível Atual: <character.level>
+Tier atual: <character.tier>
+Origem: <origin>
+
+Transferency:
+
+Jogador: <@userId> (author)
+Transfere: <amount> PO
+Para: <@userId> (target)
+
+Each command will have a type assigned to it which will be passed to the log constructor in order to choose a message pattern. Commands with type = gold | gem will also have an action attribute tied to them which will be used to select between Deposita or Retira in the log message.
+When a transferency occurs the bot must: generate and post the transferency log, subtract the gold from the author and add the gold to the target while generating both gold logs (for the author and for the target) and posting them.
+
+the currency commands will be the following
+
+/addOuro <amount: int> <origin: discordMessageUrl> (type = gold, action = deposita)
+Will add gold to the player equal to the amount passed and generate a log with the provided origin.
+
+/rmvOuro <amount: int> <origin: discordMessageUrl> (type = gold, action = retira)
+Will remove gold from to the player equal to the amount passed and generate a log with the provided origin.
+
+/addGemas <type: choiceString> <amount: int> <origin: discordMessageUrl> (type = gem, action = deposita)
+Will add the passed amount of gems of the specified type to the player and generate a log with the provided origin.
+
+/rmvGemas <type: choiceString> <amount: int> <origin: discordMessageUrl> (type = gem, action = retira)
+Will remove the passed amount of gems of the specified type to the player and generate a log with the provided origin.
+
+/addXp <characterName: string> <amount: int> <origin: discordMessageUrl> (type = xp)
+Will add xp to the specified player character equal to the amount passed and generate a log with the provided origin.
+
+/transferir <amount: int> <target: userId> (type = transferency)
+Will remove the amount of gold from the user who ran the command and add it the target user. Will also generate transferency log, and two gold logs, one with the retira action mentioning the player who ran the command and other with the deposita action mentioning the target player. Both gold logs will have the transferency log as the origin.
+
+Admin commands:
+
+/setOuro <amount: int> <target: userId>
+Will set the target's gold to the amount passed to the command.
+
+/setGems <type: choiceString> <amount: int> <target: userId>
+Will set the amount of gems of the given kind to the target player.
+
+/setXp <amount: int> <characterName: string> <target: userId>
+Will set the xp of the given character for the given user to the amount value passed.
+
+/remove <target: userId>
+Removes the target user from the database, deleting any stats associated with him
+
+/ban <target: userId>
+Will ban the target user from the guild as well as deleting any stats associated with him from the database.
